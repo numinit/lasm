@@ -1,0 +1,5 @@
+LDR:	ADD	&OPCODE
+	ST	&GEN
+GEN:	.fill	0x0000
+	RET
+OPCODE:	.fill	0x8000
