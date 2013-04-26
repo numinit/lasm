@@ -305,11 +305,10 @@ LC1_TRAP_VECTORS
                         ; that have references to current
                         ; section
 			.word    0xc001      ; 0x2400 [1100000000000001] [lc3_echo] trap %getc
-			.word    0xc004      ; 0x2402 [1100000000000100] trap %not
-			.word    0xc002      ; 0x2404 [1100000000000010] trap %outc
-			.word    0x900a      ; 0x2406 [1001000000001010] ld &negative
-			.word    0x7000      ; 0x2408 [0111000000000000] br &lc3_echo
-			.word    0xffff      ; 0x240a [1111111111111111] [negative] fill 0xffff
+			.word    0xc002      ; 0x2402 [1100000000000010] trap %outc
+			.word    0x9008      ; 0x2404 [1001000000001000] ld &negative
+			.word    0x7000      ; 0x2406 [0111000000000000] br &lc3_echo
+			.word    0xffff      ; 0x2408 [1111111111111111] [negative] fill 0xffff
 
 ; -------------------------------------------------------------------------------
 ;;; LC1 Trap Section
@@ -484,19 +483,20 @@ LC1_RR_TRAP
 ; Uses trap ram locations 0x280a (first operand for AND trap) and 0x280C (second operand for AND trap)
 ; -------------------------------------------------------------------------------
 LC1_GETC_TRAP
-			.word    0x9316      ; 0x2700 [1001001100010110] [lc1_getc_trap] ld &mask_val
+			.word    0x9318      ; 0x2700 [1001001100011000] [lc1_getc_trap] ld &mask_val
 			.word    0xb40a      ; 0x2702 [1011010000001010] st !0xa
 			.word    0x8280      ; 0x2704 [1000001010000000] ld @0x0280
-			.word    0xc003      ; 0x2706 [1100000000000011] trap %rr
+			.word    0xc004      ; 0x2706 [1100000000000100] trap %not
 			.word    0xc003      ; 0x2708 [1100000000000011] trap %rr
 			.word    0xc003      ; 0x270a [1100000000000011] trap %rr
 			.word    0xc003      ; 0x270c [1100000000000011] trap %rr
-			.word    0xb40c      ; 0x270e [1011010000001100] st !0xc
-			.word    0x9318      ; 0x2710 [1001001100011000] ld &and_addr
-			.word    0xc005      ; 0x2712 [1100000000000101] trap %and
-			.word    0x2000      ; 0x2714 [0010000000000000] ret
-			.word    0x000f      ; 0x2716 [0000000000001111] [mask_val] fill 0x000f
-			.word    0x140a      ; 0x2718 [0001010000001010] [and_addr] fill !0xa
+			.word    0xc003      ; 0x270e [1100000000000011] trap %rr
+			.word    0xb40c      ; 0x2710 [1011010000001100] st !0xc
+			.word    0x931a      ; 0x2712 [1001001100011010] ld &and_addr
+			.word    0xc005      ; 0x2714 [1100000000000101] trap %and
+			.word    0x2000      ; 0x2716 [0010000000000000] ret
+			.word    0x000f      ; 0x2718 [0000000000001111] [mask_val] fill 0x000f
+			.word    0x140a      ; 0x271a [0001010000001010] [and_addr] fill !0xa
 
 ; -------------------------------------------------------------------------------
     .sect .OUTc_Trap     ; LC1 Out Trap (0xFE50, 0x2750)
