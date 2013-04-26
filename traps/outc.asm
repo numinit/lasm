@@ -2,7 +2,7 @@
 	;; 0x8: Scratch
 	;; 0xa: AND argument 1
 	;; 0xc: AND argument 2
-LC1_TRAP_OUTC:
+LC1_OUTC_TRAP:
 	ADD	!8		; shift the accumulator left a bunch
 	ADD	!8
 	ADD	!8
@@ -20,7 +20,7 @@ LC1_TRAP_OUTC:
 	ST	!0xc		; save it
 
 	LD	&ADDR		; load the address
-	TRAP	&AND		; perform the bitwise AND
+	TRAP	%AND		; perform the bitwise AND
 
 	ADD	!8		; add in the upper byte
 	ST	@0x0222		; write it

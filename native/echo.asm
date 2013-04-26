@@ -1,9 +1,9 @@
 	;; Conventions:
 	;; Nothing!
 LC3_ECHO:
-	trap getc
-	trap not
-	trap outc
+	trap %GETC
+	trap %NOT
+	trap %OUTC
 	ld &NEGATIVE
 	br &LC3_ECHO
 NEGATIVE: .fill 0xffff

@@ -4,14 +4,14 @@
 	;; 4: Result
 	;; 6: Counter/Temp
 
-LC1_TRAP_AND:
+LC1_AND_TRAP:
 	ST	!6
-	TRAP	&LDR
+	TRAP	%LDR
 	ST	!0
 	LD	!6
 	ADD	&ONE
 	ADD	&ONE
-	TRAP	&LDR
+	TRAP	%LDR
 	ST	!2
 	LD	&ZERO
 	ST	!4
