@@ -1,59 +1,60 @@
+	;; Conventions:
+	;; 0: Argument 0
+	;; 2: Argument 1
+	;; 4: Result
+	;; 6: Counter/Temp
+
 LC1_TRAP_AND:
-	ST	&TEMP
+	ST	!6
 	TRAP	&LDR
-	ST	&A
-	LD	&TEMP
+	ST	!0
+	LD	!6
+	ADD	&ONE
 	ADD	&ONE
 	TRAP	&LDR
-	ST	&B
+	ST	!2
 	LD	&ZERO
-	ST	&C
+	ST	!4
 	LD	&N16
-	ST	&CTR
-
+	ST	!6
 LOOP:
-	LD	&CTR
-	BR	&AND_TEST_A
+	LD	!6
+	BR	&INCREMENT
+	LD	!4
 	RET
-
-AND_TEST_A:
+INCREMENT:
 	ADD	&ONE
-	ST	&CTR
-	LD	&A
-	BR	&AND_TEST_B
+	ST	!6
+TEST_A:
+	LD	!0
+	BR	&TEST_B
 	CALL	&SHIFT
 	BR	&LOOP
-AND_TEST_B:
-	LD	&B
+TEST_B:
+	LD	!2
 	BR	&NEXT
 	CALL	&SHIFT
 	BR	&LOOP
-
 NEXT:
-	LD	&C
+	LD	!4
 	ADD	&ONE
-	ST	&C
+	ST	!4
 	CALL	&SHIFT
 	BR	&LOOP
 
-SHIFT:	LD	&A
-	ADD	&A
-	ST	&A
-	LD	&B
-	ADD	&B
-	ST	&B
-	LD	&C
-	ADD	&C
-	ST	&C
+SHIFT:
+	LD	!0
+	ADD	!0
+	ST	!0
+	LD	!2
+	ADD	!2
+	ST	!2
+	LD	!4
+	ADD	!4
+	ST	!4
 	LD	&N16
 	RET
 
-N16:	.fill	0xfff0
 ZERO:	.fill	0x0000
 ONE:	.fill	0x0001
-
-A:	.fill	0x0000
-B:	.fill	0x0000
-C:	.fill	0x0000
-CTR:	.fill	0x0000
-TEMP:	.fill	0x0000
+N16:	.fill	0xfff0

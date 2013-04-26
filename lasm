@@ -12,33 +12,46 @@
 # @ADDR:  Absolute address
 # !ADDR: Trap RAM (offset from 0x2800)
 
-def extract l, i
-  m = l.match(/\A(?<virtual>\.)?(?<opcode>[a-z0-9_]+)(?<label>:)?\s*?(?<args>.*)\z/)
-  raise "error on line #{i + 1}" if m.nil? || m[:opcode].nil?
-  {virtual: !m[:virtual].nil?, label: !m[:label].nil?, opcode: m[:opcode].to_sym, args: m[:args]}
-end
+verbosity, $VERBOSE = $VERBOSE, nil
 
-def calc address
-  # Addresses of 0x1000 and above are offset by 0x1400 by the emulator.
-  # Subtract the RAM offset so we can fit it into 13 bits.
-  address >= 0x2400 ? address - 0x1400 : address
-end
+module LASMRefinements
+  refine Integer do
+    def calc
+      # Addresses of 0x1000 and above are offset by 0x1400 by the emulator.
+      # Subtract the RAM offset and AND it so we can fit it into 13 bits.
+      (self >= 0x2400 ? self - 0x1400 : self) & 0x1fff
+    end
+  end
+  refine String do
+    # Parses this string with assembly syntax
+    def parse
+      m = match(/\A(?<virtual>\.)?(?<opcode>[a-z0-9_]+)(?<label>:)?\s*?(?<args>.*)\z/)
+      raise "error parsing" if m.nil? || m[:opcode].nil?
+      {virtual: !m[:virtual].nil?, label: !m[:label].nil?, opcode: m[:opcode].to_sym, args: m[:args]}
+    end
 
-def deref val
-  if val[0] == ?&
-    sym = val[1..-1].to_sym
-    raise "unknown symbol #{sym}" unless $symbols.include?(sym)
-    calc($symbols[sym] + $base)
-  elsif val[0] == ?@
-    calc(Integer(val[1..-1]))
-  elsif val[0] == ?!
-    0x1400 + Integer(val[1..-1])
-  else
-    Integer(val)
+    # Dereferences this reference
+    def deref
+      if self[0] == ?&
+        sym = self[1..-1].to_sym
+        raise "unknown symbol #{sym}" unless $symbols.include?(sym)
+        ($symbols[sym] + $base).calc
+      elsif self[0] == ?@
+        Integer(self[1..-1]).calc
+      elsif self[0] == ?!
+        (Integer(self[1..-1]) + 0x2800).calc
+      else
+        Integer(self)
+      end
+    end
   end
 end
 
-puts "Little Assembler (#{$0}), hacked together by Morgan Jones"
+using LASMRefinements
+$VERBOSE = verbosity
+
+puts "Little Assembler (#{File.basename $0}), hacked together by Morgan Jones"
+puts "Running on " + RUBY_DESCRIPTION
 raise "usage: #{$0} <input> <starting address>" if ARGV.count != 2
 
 $obj, $base = ARGV.shift, Integer(ARGV.shift)
@@ -51,18 +64,18 @@ puts "Assembling #{$obj} at base address #{'%#04x' % $base}"
 $opcodes = {
   # Native opcodes
   native: {
-    call: -> *a {0x0000 | (deref(a.first) & 0x1fff)},
+    call: -> *a {0x0000 | a.first.deref},
     ret:  -> *a {0x2000},
-    add:  -> *a {0x4000 | (deref(a.first) & 0x1fff)},
-    br:   -> *a {0x6000 | (deref(a.first) & 0x1fff)},
-    ld:   -> *a {0x6000 | (deref(a.first) & 0x1fff)},
-    st:   -> *a {0xa000 | (deref(a.first) & 0x1fff)},
-    trap: -> *a {0xe000 | (deref(a.first) & 0x1fff)}
+    add:  -> *a {0x4000 | a.first.deref},
+    br:   -> *a {0x6000 | a.first.deref},
+    ld:   -> *a {0x6000 | a.first.deref},
+    st:   -> *a {0xa000 | a.first.deref},
+    trap: -> *a {0xe000 | a.first.deref}
   },
 
   # Virtual opcodes
   virtual: {
-    fill: -> *a {deref a.first}
+    fill: -> *a {a.first.deref}
   }
 }
 
@@ -90,7 +103,7 @@ $o.write ([';;; object: %s, base: %#04x' % [$obj, $base]] +
   next nil if l.empty?
 
   # Regex match it to extract opcode and label
-  m = extract l, i
+  m = l.parse
   label = nil
 
   # Add a symbol table entry if this is a label
@@ -100,7 +113,7 @@ $o.write ([';;; object: %s, base: %#04x' % [$obj, $base]] +
     # Continue processing the remainder of the line
     remaining = m[:args].strip
     unless remaining.empty?
-      m = extract m[:args].strip, i
+      m = m[:args].strip.parse
     else
       next nil
     end
