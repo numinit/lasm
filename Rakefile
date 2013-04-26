@@ -9,4 +9,12 @@ task :traps do |t|
   end
 end
 
-task :default => :traps
+task :native do |t|
+  [:echo].each do |obj|
+    system "./lasm ./native/#{obj}.asm 0x2400"
+    puts
+  end
+end
+
+task :all => [:traps, :native]
+task :default => :all
