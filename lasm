@@ -54,9 +54,12 @@ puts "Little Assembler (#{File.basename $0}), hacked together by Morgan Jones"
 puts "Running on " + RUBY_DESCRIPTION
 raise "usage: #{$0} <input> <starting address>" if ARGV.count != 2
 
-$obj, $base = ARGV.shift, Integer(ARGV.shift)
-$i, $o = File.open($obj, 'r'), File.open("#{File.basename($obj, File.extname($obj))}.hex", 'w')
-raise 'base must be even' unless $base % 2 == 0
+$in_file, $base = ARGV.shift, Integer(ARGV.shift)
+$obj = File.basename($in_file, File.extname($in_file))
+$out_file = File.join(File.dirname($in_file), "#{$obj}.hex")
+$i, $o = File.open($in_file, 'r'), File.open($out_file, 'w')
+
+raise 'base address must be even' unless $base % 2 == 0
 
 puts "Assembling #{$obj} at base address #{'%#04x' % $base}"
 
