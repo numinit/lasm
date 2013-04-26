@@ -291,7 +291,7 @@ LC1_INSTRUCTIONS
 LC1_TRAP_VECTORS
 			.word 0xffff 	; Bad trap
 			.word 0x2700	; GETC
-			.word 0x2750	; OUTC
+			.word 0x2770	; OUTC
 			.word 0x2670	; RR
 			.word 0x2500	; NOT
 			.word 0x254e	; AND
@@ -501,7 +501,7 @@ LC1_GETC_TRAP
 			.word    0x140a      ; 0x271a [0001010000001010] [and_addr] fill !0xa
 
 ; -------------------------------------------------------------------------------
-    .sect .OUTc_Trap     ; LC1 Out Trap (0xFE50, 0x2750)
+    .sect .OUTc_Trap     ; LC1 Out Trap (0xFE50, 0x2770)
 	.retain              ; Override ELF conditional linking
                          ; and retain current section
     .retainrefs          ; Additionally retain any sections
@@ -512,26 +512,26 @@ LC1_GETC_TRAP
 ; Uses trap ram locations 0x2808 (scratch), 0x280a (AND argument 1), and 0x280c (AND argument 2)
 ; -------------------------------------------------------------------------------
 LC1_OUTC_TRAP
-			.word    0x5408      ; 0x2750 [0101010000001000] [lc1_outc_trap] add !8
-			.word    0x5408      ; 0x2752 [0101010000001000] add !8
-			.word    0x5408      ; 0x2754 [0101010000001000] add !8
-			.word    0x5408      ; 0x2756 [0101010000001000] add !8
-			.word    0x5408      ; 0x2758 [0101010000001000] add !8
-			.word    0x5408      ; 0x275a [0101010000001000] add !8
-			.word    0x5408      ; 0x275c [0101010000001000] add !8
-			.word    0x5408      ; 0x275e [0101010000001000] add !8
-			.word    0xb408      ; 0x2760 [1011010000001000] st !8
-			.word    0x8222      ; 0x2762 [1000001000100010] ld @0x0222
-			.word    0xb40a      ; 0x2764 [1011010000001010] st !0xa
-			.word    0x9374      ; 0x2766 [1001001101110100] ld &mask
-			.word    0xb40c      ; 0x2768 [1011010000001100] st !0xc
-			.word    0x9376      ; 0x276a [1001001101110110] ld &addr
-			.word    0xc005      ; 0x276c [1100000000000101] trap %and
-			.word    0x5408      ; 0x276e [0101010000001000] add !8
-			.word    0xa222      ; 0x2770 [1010001000100010] st @0x0222
-			.word    0x2000      ; 0x2772 [0010000000000000] ret
-			.word    0x00ff      ; 0x2774 [0000000011111111] [mask] fill 0x00ff
-			.word    0x140a      ; 0x2776 [0001010000001010] [addr] fill !0xa
+			.word    0x5408      ; 0x2770 [0101010000001000] [lc1_outc_trap] add !8
+			.word    0x5408      ; 0x2772 [0101010000001000] add !8
+			.word    0x5408      ; 0x2774 [0101010000001000] add !8
+			.word    0x5408      ; 0x2776 [0101010000001000] add !8
+			.word    0x5408      ; 0x2778 [0101010000001000] add !8
+			.word    0x5408      ; 0x277a [0101010000001000] add !8
+			.word    0x5408      ; 0x277c [0101010000001000] add !8
+			.word    0x5408      ; 0x277e [0101010000001000] add !8
+			.word    0xb408      ; 0x2780 [1011010000001000] st !8
+			.word    0x8222      ; 0x2782 [1000001000100010] ld @0x0222
+			.word    0xb40a      ; 0x2784 [1011010000001010] st !0xa
+			.word    0x9394      ; 0x2786 [1001001110010100] ld &mask
+			.word    0xb40c      ; 0x2788 [1011010000001100] st !0xc
+			.word    0x9396      ; 0x278a [1001001110010110] ld &addr
+			.word    0xc005      ; 0x278c [1100000000000101] trap %and
+			.word    0x5408      ; 0x278e [0101010000001000] add !8
+			.word    0xa222      ; 0x2790 [1010001000100010] st @0x0222
+			.word    0x2000      ; 0x2792 [0010000000000000] ret
+			.word    0x00ff      ; 0x2794 [0000000011111111] [mask] fill 0x00ff
+			.word    0x140a      ; 0x2796 [0001010000001010] [addr] fill !0xa
 
 ; -------------------------------------------------------------------------------
 ;;; Stack Pointer definition
