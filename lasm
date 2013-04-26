@@ -151,7 +151,6 @@ $o.write ([';;; object: %s, base: %#04x' % [$obj, $base]] +
 }.reject(&:nil?).tap{puts "[3] Pass 2..."}.map { |l|
   ### PASS 2 ###
 
-  # Convert to machine code
   machine_code = l[:fn].(*l[:args])
   ".word    0x%1$04x      ; 0x%3$04x [%1$016b] %2$s" % [machine_code, l[:line], l[:addr]]
 }).tap{|a| puts "Assembled `#{$obj}' (#{a.count} words, #{$symbols.count} symbols)"}.join("\n") + "\n"

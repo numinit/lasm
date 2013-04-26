@@ -6,6 +6,7 @@ LC1_GETC_TRAP:
 	ST	!0xa
 
 	LD	@0x0280
+	TRAP	%NOT
 	TRAP	%RR
 	TRAP	%RR
 	TRAP	%RR

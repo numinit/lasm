@@ -16,5 +16,12 @@ task :native do |t|
   end
 end
 
-task :all => [:traps, :native]
+task :test do |t|
+  [:and, :getc, :outc, :ldr, :stop].each do |obj|
+    system "./lasm ./test/test_#{obj}.asm 0x2400"
+    puts
+  end
+end
+
+task :all => [:traps, :native, :test]
 task :default => :all
