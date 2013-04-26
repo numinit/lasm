@@ -181,6 +181,7 @@ LC1_ADD
             mov.w @LC1_MAR, LC1_TMP_REG 				; Take the memory at MAR and store it into TMP_REG
             add.w LC1_TMP_REG, LC1_ACC  				; Add TMP_REG to the accumulator
             jn LC1_ADD_NEGATIVE         				; If it's negative, set the negative flag
+            mov.w #0, LC1_CR
             ret
 LC1_ADD_NEGATIVE
             mov.w #1, LC1_CR
@@ -191,6 +192,7 @@ LC1_LD
 			mov.w @LC1_MAR, LC1_ACC     				; Take the memory at MAR and store it into ACC
             tst LC1_ACC                 				; Test ACC
             jn LC1_LD_NEGATIVE          				; If it's negative, set the negative flag
+            mov.w #0, LC1_CR
             ret
 LC1_LD_NEGATIVE
             mov.w #1, LC1_CR
