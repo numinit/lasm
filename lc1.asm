@@ -77,7 +77,6 @@
     .asg 0x0001, LC1_PANIC_ILLEGAL
     .asg 0x0002, LC1_PANIC_STACK_OVERFLOW
     .asg 0x0003, LC1_PANIC_STACK_UNDERFLOW
-    .asg 0x0004, LC1_PANIC_BUS_ERROR
 
     .text 	                        ; Stick the remaining code in the .text section
     .retain                         ; Override ELF conditional linking and retain current section
@@ -134,20 +133,6 @@ LC1_DECODE_OPCODE
 			rla.w LC1_IR								; Align the pointer to 2 bytes
             and.w #LC1_OPCODE_MASK, LC1_IR              ; 0x0007 = 0000 0000 0000 1110 (low 3 bits, opcode offset)
 
-;;; ======== VERIFY (extra step) ========
-LC1_VERIFY_ALIGNMENT
-			cmp.w #0xc, LC1_IR 							; If this isn't a trap, verify that we're accessing even memory addresses only
-			jeq LC1_EXECUTE
-			mov.w #1, LC1_TMP_REG						; AND the MAR with 1, and verify that it's 0
-			and.w LC1_MAR, LC1_TMP_REG
-			jz LC1_EXECUTE
-LC1_VERIFY_ALIGNMENT_PANIC
-			push LC1_FUNC_ARG							; Misaligned memory address. Don't let this crash the host processor.
-			mov.w #LC1_PANIC_BUS_ERROR, LC1_FUNC_ARG	; Panic reason: Bus error
-			call #LC1_PANIC
-			pop LC1_FUNC_ARG
-			br #LC1_FETCH
-
 ;;; ======== EXECUTE ========
 LC1_EXECUTE
             call LC1_INSTRUCTIONS(LC1_IR)               ; Indirect call to the instruction at LC1_INSTRUCTIONS + IR
@@ -200,7 +185,18 @@ LC1_LD_NEGATIVE
 
 ;;; ======== LC-1 Store ========
 LC1_ST
-			mov.w LC1_ACC, 0(LC1_MAR)  				; Move the accumulator into the address pointed to by MAR
+			mov.w #1, LC1_TMP_REG						; Move bit 0 into TMP_REG
+			and.w LC1_MAR, LC1_TMP_REG
+			jnz LC1_ST_BYTE								; The address is odd, so store a byte
+
+			mov.w #0x340, LC1_TMP_REG					; Move the address just beyond the top I/O address into TMP_REG
+			cmp.w LC1_MAR, LC1_TMP_REG
+			jl LC1_ST_WORD								; The address isn't an I/O address, so store a word
+LC1_ST_BYTE
+			mov.b LC1_ACC, 0(LC1_MAR)
+			ret
+LC1_ST_WORD
+			mov.w LC1_ACC, 0(LC1_MAR)  					; Move the accumulator into the address pointed to by MAR
             ret
 
 ;;; ======== LC-1 Trap ========
@@ -232,6 +228,7 @@ LC1_PANIC
             mov.b #0x0f, &P4OUT				; Clear the first display
             mov.b LC1_FUNC_ARG, &P3OUT      ; Output the panic reason to the second display
             bis.w #LPM3, SR	            	; Enable Low Power Mode, and wait for an interrupt
+            nop
             call #LC1_INIT					; Reinitialize the state machine
             ret								; Continue the instruction cycle
 
@@ -305,11 +302,11 @@ LC1_TRAP_VECTORS
                         ; and retain current section
     .retainrefs         ; Additionally retain any sections
                         ; that have references to current
-                        ; section
-			.word    0xc001      ; 0x2400 [1100000000000001] [lc3_echo] trap %getc
+			            ; section
+			.word    0xc001      ; 0x2400 [1100000000000001] [lc1_echo] trap %getc
 			.word    0xc002      ; 0x2402 [1100000000000010] trap %outc
 			.word    0x9008      ; 0x2404 [1001000000001000] ld &negative
-			.word    0x7000      ; 0x2406 [0111000000000000] br &lc3_echo
+			.word    0x7000      ; 0x2406 [0111000000000000] br &lc1_echo
 			.word    0xffff      ; 0x2408 [1111111111111111] [negative] fill 0xffff
 
 ; -------------------------------------------------------------------------------
@@ -375,47 +372,47 @@ LC1_AND_TRAP
 			.word    0xc006      ; 0x2550 [1100000000000110] trap %ldr
 			.word    0xb400      ; 0x2552 [1011010000000000] st !0
 			.word    0x9406      ; 0x2554 [1001010000000110] ld !6
-			.word    0x51a4      ; 0x2556 [0101000110100100] add &one
-			.word    0x51a4      ; 0x2558 [0101000110100100] add &one
-			.word    0xc006      ; 0x255a [1100000000000110] trap %ldr
-			.word    0xb402      ; 0x255c [1011010000000010] st !2
-			.word    0x91a2      ; 0x255e [1001000110100010] ld &zero
-			.word    0xb404      ; 0x2560 [1011010000000100] st !4
-			.word    0x91a6      ; 0x2562 [1001000110100110] ld &n16
-			.word    0xb406      ; 0x2564 [1011010000000110] st !6
-			.word    0x9406      ; 0x2566 [1001010000000110] [loop] ld !6
-			.word    0x716e      ; 0x2568 [0111000101101110] br &increment
-			.word    0x9404      ; 0x256a [1001010000000100] ld !4
-			.word    0x2000      ; 0x256c [0010000000000000] ret
-			.word    0x51a4      ; 0x256e [0101000110100100] [increment] add &one
-			.word    0xb406      ; 0x2570 [1011010000000110] st !6
-			.word    0x9400      ; 0x2572 [1001010000000000] [test_a] ld !0
-			.word    0x717a      ; 0x2574 [0111000101111010] br &test_b
-			.word    0x118c      ; 0x2576 [0001000110001100] call &shift
-			.word    0x7166      ; 0x2578 [0111000101100110] br &loop
-			.word    0x9402      ; 0x257a [1001010000000010] [test_b] ld !2
-			.word    0x7182      ; 0x257c [0111000110000010] br &next
-			.word    0x118c      ; 0x257e [0001000110001100] call &shift
-			.word    0x7166      ; 0x2580 [0111000101100110] br &loop
-			.word    0x9404      ; 0x2582 [1001010000000100] [next] ld !4
-			.word    0x51a4      ; 0x2584 [0101000110100100] add &one
-			.word    0xb404      ; 0x2586 [1011010000000100] st !4
-			.word    0x118c      ; 0x2588 [0001000110001100] call &shift
-			.word    0x7166      ; 0x258a [0111000101100110] br &loop
-			.word    0x9400      ; 0x258c [1001010000000000] [shift] ld !0
-			.word    0x5400      ; 0x258e [0101010000000000] add !0
-			.word    0xb400      ; 0x2590 [1011010000000000] st !0
-			.word    0x9402      ; 0x2592 [1001010000000010] ld !2
-			.word    0x5402      ; 0x2594 [0101010000000010] add !2
-			.word    0xb402      ; 0x2596 [1011010000000010] st !2
-			.word    0x9404      ; 0x2598 [1001010000000100] ld !4
-			.word    0x5404      ; 0x259a [0101010000000100] add !4
-			.word    0xb404      ; 0x259c [1011010000000100] st !4
-			.word    0x91a6      ; 0x259e [1001000110100110] ld &n16
-			.word    0x2000      ; 0x25a0 [0010000000000000] ret
-			.word    0x0000      ; 0x25a2 [0000000000000000] [zero] fill 0x0000
-			.word    0x0001      ; 0x25a4 [0000000000000001] [one] fill 0x0001
-			.word    0xfff0      ; 0x25a6 [1111111111110000] [n16] fill 0xfff0
+			.word    0x51a4      ; 0x2556 [0101000110100100] add &two
+			.word    0xc006      ; 0x2558 [1100000000000110] trap %ldr
+			.word    0xb402      ; 0x255a [1011010000000010] st !2
+			.word    0x91a0      ; 0x255c [1001000110100000] ld &zero
+			.word    0xb404      ; 0x255e [1011010000000100] st !4
+			.word    0x91a6      ; 0x2560 [1001000110100110] ld &n15
+			.word    0xb406      ; 0x2562 [1011010000000110] st !6
+			.word    0x9406      ; 0x2564 [1001010000000110] [loop] ld !6
+			.word    0x716c      ; 0x2566 [0111000101101100] br &increment
+			.word    0x9404      ; 0x2568 [1001010000000100] ld !4
+			.word    0x2000      ; 0x256a [0010000000000000] ret
+			.word    0x51a2      ; 0x256c [0101000110100010] [increment] add &one
+			.word    0xb406      ; 0x256e [1011010000000110] st !6
+			.word    0x9400      ; 0x2570 [1001010000000000] [test_a] ld !0
+			.word    0x7178      ; 0x2572 [0111000101111000] br &test_b
+			.word    0x118a      ; 0x2574 [0001000110001010] call &shift
+			.word    0x7164      ; 0x2576 [0111000101100100] br &loop
+			.word    0x9402      ; 0x2578 [1001010000000010] [test_b] ld !2
+			.word    0x7180      ; 0x257a [0111000110000000] br &next
+			.word    0x118a      ; 0x257c [0001000110001010] call &shift
+			.word    0x7164      ; 0x257e [0111000101100100] br &loop
+			.word    0x9404      ; 0x2580 [1001010000000100] [next] ld !4
+			.word    0x51a2      ; 0x2582 [0101000110100010] add &one
+			.word    0xb404      ; 0x2584 [1011010000000100] st !4
+			.word    0x118a      ; 0x2586 [0001000110001010] call &shift
+			.word    0x7164      ; 0x2588 [0111000101100100] br &loop
+			.word    0x9400      ; 0x258a [1001010000000000] [shift] ld !0
+			.word    0x5400      ; 0x258c [0101010000000000] add !0
+			.word    0xb400      ; 0x258e [1011010000000000] st !0
+			.word    0x9402      ; 0x2590 [1001010000000010] ld !2
+			.word    0x5402      ; 0x2592 [0101010000000010] add !2
+			.word    0xb402      ; 0x2594 [1011010000000010] st !2
+			.word    0x9404      ; 0x2596 [1001010000000100] ld !4
+			.word    0x5404      ; 0x2598 [0101010000000100] add !4
+			.word    0xb404      ; 0x259a [1011010000000100] st !4
+			.word    0x91a6      ; 0x259c [1001000110100110] ld &n15
+			.word    0x2000      ; 0x259e [0010000000000000] ret
+			.word    0x0000      ; 0x25a0 [0000000000000000] [zero] fill 0x0000
+			.word    0x0001      ; 0x25a2 [0000000000000001] [one] fill 0x0001
+			.word    0x0002      ; 0x25a4 [0000000000000010] [two] fill 0x0002
+			.word    0xfff1      ; 0x25a6 [1111111111110001] [n15] fill 0xfff1
 
 ; -------------------------------------------------------------------------------
 	.sect .LDR_Trap     ; LC1 LDR Trap (0xFD00, 0x2600)
@@ -488,11 +485,11 @@ LC1_GETC_TRAP
 			.word    0x9318      ; 0x2700 [1001001100011000] [lc1_getc_trap] ld &mask_val
 			.word    0xb40a      ; 0x2702 [1011010000001010] st !0xa
 			.word    0x8280      ; 0x2704 [1000001010000000] ld @0x0280
-			.word    0xc004      ; 0x2706 [1100000000000100] trap %not
+			.word    0xc003      ; 0x2706 [1100000000000011] trap %rr
 			.word    0xc003      ; 0x2708 [1100000000000011] trap %rr
 			.word    0xc003      ; 0x270a [1100000000000011] trap %rr
 			.word    0xc003      ; 0x270c [1100000000000011] trap %rr
-			.word    0xc003      ; 0x270e [1100000000000011] trap %rr
+			.word    0xc004      ; 0x270e [1100000000000100] trap %not
 			.word    0xb40c      ; 0x2710 [1011010000001100] st !0xc
 			.word    0x931a      ; 0x2712 [1001001100011010] ld &and_addr
 			.word    0xc005      ; 0x2714 [1100000000000101] trap %and
@@ -512,26 +509,8 @@ LC1_GETC_TRAP
 ; Uses trap ram locations 0x2808 (scratch), 0x280a (AND argument 1), and 0x280c (AND argument 2)
 ; -------------------------------------------------------------------------------
 LC1_OUTC_TRAP
-			.word    0x5408      ; 0x2770 [0101010000001000] [lc1_outc_trap] add !8
-			.word    0x5408      ; 0x2772 [0101010000001000] add !8
-			.word    0x5408      ; 0x2774 [0101010000001000] add !8
-			.word    0x5408      ; 0x2776 [0101010000001000] add !8
-			.word    0x5408      ; 0x2778 [0101010000001000] add !8
-			.word    0x5408      ; 0x277a [0101010000001000] add !8
-			.word    0x5408      ; 0x277c [0101010000001000] add !8
-			.word    0x5408      ; 0x277e [0101010000001000] add !8
-			.word    0xb408      ; 0x2780 [1011010000001000] st !8
-			.word    0x8222      ; 0x2782 [1000001000100010] ld @0x0222
-			.word    0xb40a      ; 0x2784 [1011010000001010] st !0xa
-			.word    0x9394      ; 0x2786 [1001001110010100] ld &mask
-			.word    0xb40c      ; 0x2788 [1011010000001100] st !0xc
-			.word    0x9396      ; 0x278a [1001001110010110] ld &addr
-			.word    0xc005      ; 0x278c [1100000000000101] trap %and
-			.word    0x5408      ; 0x278e [0101010000001000] add !8
-			.word    0xa222      ; 0x2790 [1010001000100010] st @0x0222
-			.word    0x2000      ; 0x2792 [0010000000000000] ret
-			.word    0x00ff      ; 0x2794 [0000000011111111] [mask] fill 0x00ff
-			.word    0x140a      ; 0x2796 [0001010000001010] [addr] fill !0xa
+		.word    0xa223      ; 0x2770 [1010001000100011] [lc1_outc_trap] st @0x0223
+		.word    0x2000      ; 0x2772 [0010000000000000] ret
 
 ; -------------------------------------------------------------------------------
 ;;; Stack Pointer definition
