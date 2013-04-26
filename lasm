@@ -1,0 +1,135 @@
+#!/usr/bin/env ruby
+
+### LASM: Little Assembler ###
+### Morgan Jones, ELEC 220 ###
+
+# LASM works like a normal assembler, except that commas are optional and most stuff
+# takes only one argument. It has the .fill virtual opcode, too. That's about it. It works, but isn't fancy.
+# Usage: lasm <input.asm> <starting address>
+# Output is saved to input.hex as .word commands for IAR.
+
+# &LABEL: Absolute label
+# @ADDR:  Absolute address
+# !ADDR: Trap RAM (offset from 0x2800)
+
+def extract l, i
+  m = l.match(/\A(?<virtual>\.)?(?<opcode>[a-z0-9_]+)(?<label>:)?\s*?(?<args>.*)\z/)
+  raise "error on line #{i + 1}" if m.nil? || m[:opcode].nil?
+  {virtual: !m[:virtual].nil?, label: !m[:label].nil?, opcode: m[:opcode].to_sym, args: m[:args]}
+end
+
+def calc address
+  # Addresses of 0x1000 and above are offset by 0x1400 by the emulator.
+  # Subtract the RAM offset so we can fit it into 13 bits.
+  address >= 0x2400 ? address - 0x1400 : address
+end
+
+def deref val
+  if val[0] == ?&
+    sym = val[1..-1].to_sym
+    raise "unknown symbol #{sym}" unless $symbols.include?(sym)
+    calc($symbols[sym] + $base)
+  elsif val[0] == ?@
+    calc(Integer(val[1..-1]))
+  elsif val[0] == ?!
+    0x1400 + Integer(val[1..-1])
+  else
+    Integer(val)
+  end
+end
+
+puts "Little Assembler (#{$0}), hacked together by Morgan Jones"
+raise "usage: #{$0} <input> <starting address>" if ARGV.count != 2
+
+$obj, $base = ARGV.shift, Integer(ARGV.shift)
+$i, $o = File.open($obj, 'r'), File.open("#{File.basename($obj, File.extname($obj))}.hex", 'w')
+raise 'base must be even' unless $base % 2 == 0
+
+puts "Assembling #{$obj} at base address #{'%#04x' % $base}"
+
+# A table of LC-1 opcodes
+$opcodes = {
+  # Native opcodes
+  native: {
+    call: -> *a {0x0000 | (deref(a.first) & 0x1fff)},
+    ret:  -> *a {0x2000},
+    add:  -> *a {0x4000 | (deref(a.first) & 0x1fff)},
+    br:   -> *a {0x6000 | (deref(a.first) & 0x1fff)},
+    ld:   -> *a {0x6000 | (deref(a.first) & 0x1fff)},
+    st:   -> *a {0xa000 | (deref(a.first) & 0x1fff)},
+    trap: -> *a {0xe000 | (deref(a.first) & 0x1fff)}
+  },
+
+  # Virtual opcodes
+  virtual: {
+    fill: -> *a {deref a.first}
+  }
+}
+
+# Start out with no defined symbols except for traps
+$symbols = {
+  stop: 0,
+  getc: 1,
+  outc: 2,
+  rr:   3,
+  not:  4,
+  and:  5,
+  ldr:  6,
+}
+
+# The last dangling label we've parsed
+$dangling = nil
+
+# Current offset
+$offset = 0
+
+$o.write ([';;; object: %s, base: %#04x' % [$obj, $base]] +
+          $i.readlines.tap{puts "[1] Sanitizing input..."}.
+          map{|l| l.gsub(/;.+$/, '').downcase.strip}.tap{puts "[2] Pass 1..."}.each_with_index.map { |l, i|
+  ### PASS 1 ###
+  next nil if l.empty?
+
+  # Regex match it to extract opcode and label
+  m = extract l, i
+  label = nil
+
+  # Add a symbol table entry if this is a label
+  if m[:label]
+    $dangling = m[:opcode]
+
+    # Continue processing the remainder of the line
+    remaining = m[:args].strip
+    unless remaining.empty?
+      m = extract m[:args].strip, i
+    else
+      next nil
+    end
+  end
+
+  # Make an intermediate representation
+  ret = {opcode: m[:opcode],
+         fn: (m[:virtual] ? $opcodes[:virtual][m[:opcode]] : $opcodes[:native][m[:opcode]]),
+         args: m[:args].split,
+         line: "#{!$dangling.nil? ? '[%s]' % $dangling : ''} #{m[:opcode]} #{m[:args].strip}".strip,
+         offset: $offset,
+         addr: $offset + $base}
+
+  # Try to un-dangle labels
+  unless $dangling.nil?
+    raise "symbol #{$dangling} redefined on line #{i + 1} (previous definition: #{'%#04x' % $symbols[$dangling]})" if $symbols.include? $dangling
+    $symbols[$dangling] = $offset
+    $dangling = nil
+  end
+
+  # 8-bit addressability, but 16 bit words
+  $offset += 2
+  ret
+}.reject(&:nil?).tap{puts "[3] Pass 2..."}.map { |l|
+  ### PASS 2 ###
+
+  # Convert to machine code
+  machine_code = l[:fn].(*l[:args])
+  '.word %1$#04x ; %2$s / %3$#04x (%1$016b)' % [machine_code, l[:line], l[:addr]]
+}).tap{|a| puts "Assembled `#{$obj}' (#{a.count} words, #{$symbols.count} symbols)"}.join("\n")
+
+puts "Cave Johnson. We're done here."

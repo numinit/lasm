@@ -1,5 +1,14 @@
-LDR:	ADD	&OPCODE
-	ST	&GEN
-GEN:	.fill	0x0000
-	RET
-OPCODE:	.fill	0x8000
+LC1_LDR_TRAP:
+	ADD	&OPCODE
+	ST	!0x0e
+	LD	&RETURN
+	ST	!0x10
+	LD	&NEGATIVE
+	BR	!0x0e
+
+NEGATIVE:
+	.fill 0xffff
+OPCODE:
+	.fill	0x8000
+RETURN:
+	.fill	0x2000

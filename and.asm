@@ -1,4 +1,5 @@
-AND:	ST	&TEMP
+LC1_TRAP_AND:
+	ST	&TEMP
 	TRAP	&LDR
 	ST	&A
 	LD	&TEMP
@@ -9,29 +10,32 @@ AND:	ST	&TEMP
 	ST	&C
 	LD	&N16
 	ST	&CTR
-		
-LOOP:	LD	&CTR
+
+LOOP:
+	LD	&CTR
 	BR	&AND_TEST_A
-	RET	
-		
-AND_TEST_A:	ADD	&ONE
+	RET
+
+AND_TEST_A:
+	ADD	&ONE
 	ST	&CTR
 	LD	&A
 	BR	&AND_TEST_B
 	CALL	&SHIFT
 	BR	&LOOP
-		
-AND_TEST_B:	LD	&B
+AND_TEST_B:
+	LD	&B
 	BR	&NEXT
 	CALL	&SHIFT
 	BR	&LOOP
-		
-NEXT:	LD	&C
+
+NEXT:
+	LD	&C
 	ADD	&ONE
 	ST	&C
 	CALL	&SHIFT
 	BR	&LOOP
-		
+
 SHIFT:	LD	&A
 	ADD	&A
 	ST	&A
@@ -42,7 +46,7 @@ SHIFT:	LD	&A
 	ADD	&C
 	ST	&C
 	LD	&N16
-	RET	
+	RET
 
 N16:	.fill	0xfff0
 ZERO:	.fill	0x0000
