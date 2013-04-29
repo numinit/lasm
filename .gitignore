@@ -1,1 +1,26 @@
+# File metadata
+.DS_Store
+Thumbs.db
+Icon?
+__MACOSX
+
+# Output files
+*.elf
 *.hex
+*.bin
+*.elf
+*.out
+*.eep
+*.map
+*.lst
+*.gch
+
+# Intermediate files
+*.o
+*.i
+*.s
+
+# Autosave files
+*#
+*~
+.#*
